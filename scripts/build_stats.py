@@ -16,8 +16,16 @@ def main():
     by_day = defaultdict(int)
     rows = 0
     with SRC.open(newline="") as f:
-        for row in csv.DictReader(f):
-            cups = int(row[CUPS_COLUMN])
+        # Line 1 is the header, so the first data row is line 2.
+        for line_no, row in enumerate(csv.DictReader(f), start=2):
+            raw = row[CUPS_COLUMN]
+            try:
+                cups = int(raw)
+            except ValueError:
+                # ::error lines become annotations that point at the exact line in the CSV
+                print(f"::error file={SRC.as_posix()},line={line_no}::"
+                      f"'{raw}' is not a whole number of cups ({row['date']}, {row['team']})")
+                raise SystemExit(1)
             by_team[row["team"]] += cups
             by_day[row["date"]] += cups
             rows += 1

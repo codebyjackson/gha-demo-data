@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 
 concurrency:
   group: claude-fix
@@ -81,13 +82,38 @@ jobs:
 
             Please:
             1. Find the root cause. `git log -3 --stat` and `git show` show what changed recently.
-            2. Fix the code under scripts/. Do not edit data/coffee.csv: treat the data as correct.
+            2. Fix it with the smallest possible change:
+               - A bad value in data/coffee.csv: fix it only if it is an obvious typo with one sensible
+                 reading, such as the letter O typed for the digit 0. Never invent, round or "correct"
+                 real numbers, and never delete rows.
+               - A bug in scripts/: fix the code.
+               - Anything that needs a human decision: change nothing, and explain why in your final message.
             3. Prove the fix: run `python3 scripts/build_stats.py`, then
                `python3 scripts/validate_stats.py dist/stats.json`.
             4. Create a branch named claude/fix-build-${{ github.event.workflow_run.id }},
                commit only the files you changed, push it, and open a pull request into main
-               with `gh pr create`. In the PR body, explain the cause and the fix in plain words.
+               with `gh pr create`. Title it "Fix: <what was wrong>". In the body, say what was wrong,
+               which commit introduced it, and exactly what you changed.
           claude_args: >-
             --model ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-sonnet-5.5' }}
             --max-turns 20
             --allowedTools "Read,Edit,Grep,Glob,Bash(git:*),Bash(python3:*),Bash(gh pr create:*)"
+
+      - name: Email the team
+        # always(): send the email even if the agent step failed
+        if: always() && steps.failed.outputs.fix == 'true'
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ vars.NOTIFY_EMAIL_TO }}
+          EMAIL_FROM: ${{ vars.NOTIFY_EMAIL_FROM }}
+          BRANCH: claude/fix-build-${{ github.event.workflow_run.id }}
+          COMMIT: ${{ github.event.workflow_run.head_sha }}
+          AUTHOR: ${{ github.event.workflow_run.head_commit.author.name }}
+          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          FAILED_LOG: ${{ steps.logs.outputs.tail }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          AGENT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 .github/scripts/notify_email.py
