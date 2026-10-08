@@ -1,4 +1,4 @@
-date,team,cups_drunk
+date,team,cups
 2026-10-05,Platform,14
 2026-10-05,Data,9
 2026-10-05,Design,7
@@ -19,4 +19,3 @@ date,team,cups_drunk
 2026-10-09,Data,12
 2026-10-09,Design,10
 2026-10-09,Product,14
-2026-10-09,Product,20
