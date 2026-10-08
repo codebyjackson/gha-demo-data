@@ -62,13 +62,13 @@ def build_email():
     said = claude_verdict(env("CLAUDE_OUTPUT", ""))
 
     if pr:
-        subject = f"[gha-demo] Bad data fixed by Claude: PR #{pr['number']} needs your review"
-        verdict = (f"Claude found the problem and opened a fix.\n"
-                   f"Review and merge it here: {pr['url']}\n\n"
-                   f"{pr['title']}\n{'-' * len(pr['title'])}\n{pr['body'].strip()}")
+        subject = f"[gha-demo] Claude fixed it: PR #{pr['number']} is ready for you to merge"
+        verdict = (f"Claude found the problem and fixed it on a branch. Nothing is live until you merge.\n"
+                   f"Review and merge: {pr['url']}\n\n"
+                   f"The fix: {pr['title']}\n{'-' * (9 + len(pr['title']))}\n{pr['body'].strip()}")
     elif said:
-        subject = "[gha-demo] Build data failed and needs a human"
-        verdict = f"Claude looked into it and decided not to change anything. In its words:\n\n{said}"
+        subject = "[gha-demo] Claude needs your decision: Build data failed"
+        verdict = f"Claude did not change anything. It needs you to choose the fix. In its words:\n\n{said}"
     else:
         subject = "[gha-demo] Build data failed and needs a human"
         verdict = "Claude did not open a fix and gave no explanation. The agent run may have failed; open it below."

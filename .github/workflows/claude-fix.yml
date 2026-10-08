@@ -83,20 +83,25 @@ jobs:
 
             Please:
             1. Find the root cause. `git log -3 --stat` and `git show` show what changed recently.
-            2. Fix it with the smallest possible change:
-               - A bad value in data/coffee.csv: fix it only if it is an obvious typo with one sensible
-                 reading, such as the letter O typed for the digit 0. Never invent, round or "correct"
-                 real numbers, and never delete rows.
-               - A bug in scripts/: fix the code.
-               - Anything that needs a human decision: change nothing, and explain why in your final message.
-            3. Prove the fix: run `python3 scripts/build_stats.py`, then
+            2. Decide what kind of problem it is:
+               - FIX IT: a value in data/coffee.csv that is an obvious typo with one sensible reading,
+                 such as the letter O typed for the digit 0. Change only that value.
+               - FIX IT: a bug in scripts/ that broke code that used to work.
+               - ASK, DON'T FIX: a schema change, meaning a column in the CSV header was renamed, added or
+                 removed. That is a deliberate decision, so change nothing: not the header, not the code.
+               - ASK, DON'T FIX: anything else where you would have to guess.
+               Never invent, round or "correct" real numbers, and never delete rows.
+            3. If you fixed it, prove the fix: run `python3 scripts/build_stats.py`, then
                `python3 scripts/validate_stats.py dist/stats.json`.
-            4. Create a branch named claude/fix-build-${{ github.event.workflow_run.id }},
+            4. If you fixed it, create a branch named claude/fix-build-${{ github.event.workflow_run.id }},
                commit only the files you changed, push it with `git push -u origin <branch>`, and open
                a pull request into main with `gh pr create`. Title it "Fix: <what was wrong>". In the body,
                say what was wrong, which commit introduced it, and exactly what you changed.
             5. Never push to main and never merge. A person reviews and merges your PR.
-            End with two or three plain sentences: what you found, and what you did or why you changed nothing.
+            Your final message is emailed to the team, so write it for them in plain words:
+            - If you fixed it: what was wrong and what you changed, in two or three sentences.
+            - If you asked: what changed and why you didn't fix it, then a numbered list of the possible
+              fixes, each naming the exact file, line and new text. Finish by asking which one they want.
           # Read-only git, plus pushing claude/ branches only. No merge command is allowed.
           claude_args: >-
             --model ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-haiku-5.5' }}

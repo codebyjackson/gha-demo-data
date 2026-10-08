@@ -16,8 +16,15 @@ def main():
     by_day = defaultdict(int)
     rows = 0
     with SRC.open(newline="") as f:
+        reader = csv.DictReader(f)
+        header = reader.fieldnames or []
+        for column in ("date", "team", CUPS_COLUMN):
+            if column not in header:
+                print(f"::error file={SRC.as_posix()},line=1::"
+                      f"Column '{column}' not found. The header has: {', '.join(header)}")
+                raise SystemExit(1)
         # Line 1 is the header, so the first data row is line 2.
-        for line_no, row in enumerate(csv.DictReader(f), start=2):
+        for line_no, row in enumerate(reader, start=2):
             raw = row[CUPS_COLUMN]
             try:
                 cups = int(raw)
