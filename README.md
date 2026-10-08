@@ -12,7 +12,7 @@ Secrets:
 - `CROSS_REPO_TOKEN`: a fine-grained PAT on both demo repos with Actions read, Contents read/write, and Pull requests read/write. It sends the dispatch, and the agent uses it to push its branch and open the PR.
 - `OPENROUTER_API_KEY`: pays for the agent's model calls.
 
-Optional variable: `OPENROUTER_MODEL` (default `anthropic/claude-sonnet-5.5`).
+Optional variable: `OPENROUTER_MODEL` (default `anthropic/claude-sonnet-4.6`).
 
 Live site: https://codebyjackson.github.io/gha-demo-site/
 
