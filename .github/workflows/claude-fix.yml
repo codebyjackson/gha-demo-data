@@ -1,0 +1,93 @@
+name: Claude fixes red builds
+
+on:
+  workflow_run:
+    workflows: ["Build data"]
+    types: [completed]
+
+# GITHUB_TOKEN only reads here. The branch and PR are made with CROSS_REPO_TOKEN.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: claude-fix
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    # Only failures on main. The agent's own PR branches never match,
+    # so it can't set itself off in a loop.
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Check that the code broke, not the plumbing
+        id: failed
+        run: |
+          JOBS=$(gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(",")')
+          echo "Failed jobs: $JOBS"
+          case ",$JOBS," in
+            *,build,*|*,validate,*) echo "fix=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "fix=false" >> "$GITHUB_OUTPUT"
+               echo "::notice::Only '$JOBS' failed. That's not a code problem, so the agent stays out of it." ;;
+          esac
+
+      - uses: actions/checkout@v7
+        if: steps.failed.outputs.fix == 'true'
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Grab the failed log
+        if: steps.failed.outputs.fix == 'true'
+        id: logs
+        run: |
+          {
+            echo "tail<<EOF_FAILED_LOG"
+            gh run view "$RUN_ID" --log-failed | tail -n 60 | cut -c1-300
+            echo "EOF_FAILED_LOG"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Ask Claude to fix it (through OpenRouter)
+        if: steps.failed.outputs.fix == 'true'
+        uses: anthropics/claude-code-action@v1
+        env:
+          # Send Claude Code's model calls to OpenRouter instead of api.anthropic.com
+          ANTHROPIC_BASE_URL: https://openrouter.ai/api
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.OPENROUTER_API_KEY }}
+          ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-sonnet-5.5' }}
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: anthropic/claude-haiku-5.5
+        with:
+          # The action requires this input. OpenRouter accepts the same key.
+          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          # Push and open the PR with our token, so no Claude GitHub App is needed
+          # and the PR's own Build data check runs.
+          github_token: ${{ secrets.CROSS_REPO_TOKEN }}
+          classify_inline_comments: "false"
+          prompt: |
+            The "Build data" workflow failed on main.
+            Run: ${{ github.event.workflow_run.html_url }}
+            Commit: ${{ github.event.workflow_run.head_sha }}
+
+            Last lines of the failed log:
+            ${{ steps.logs.outputs.tail }}
+
+            Please:
+            1. Find the root cause. `git log -3 --stat` and `git show` show what changed recently.
+            2. Fix the code under scripts/. Do not edit data/coffee.csv: treat the data as correct.
+            3. Prove the fix: run `python3 scripts/build_stats.py`, then
+               `python3 scripts/validate_stats.py dist/stats.json`.
+            4. Create a branch named claude/fix-build-${{ github.event.workflow_run.id }},
+               commit only the files you changed, push it, and open a pull request into main
+               with `gh pr create`. In the PR body, explain the cause and the fix in plain words.
+          claude_args: >-
+            --model ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-sonnet-5.5' }}
+            --max-turns 20
+            --allowedTools "Read,Edit,Grep,Glob,Bash(git:*),Bash(python3:*),Bash(gh pr create:*)"
