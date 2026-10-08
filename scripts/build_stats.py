@@ -16,6 +16,7 @@ def main():
     by_day = defaultdict(int)
     team_days = defaultdict(set)
     first_line = {}
+    table = defaultdict(dict)  # the CSV as a grid: table[date][team] = cups
     rows = 0
     with SRC.open(newline="") as f:
         reader = csv.DictReader(f)
@@ -39,6 +40,7 @@ def main():
             by_day[row["date"]] += cups
             team_days[row["team"]].add(row["date"])
             first_line.setdefault(row["team"], line_no)
+            table[row["date"]][row["team"]] = cups
             rows += 1
 
     # Every team should have a row for every day. A misspelled team name breaks this twice:
@@ -63,6 +65,8 @@ def main():
         "total_cups": sum(by_team.values()),
         "by_team": dict(sorted(by_team.items(), key=lambda kv: -kv[1])),
         "by_day": dict(sorted(by_day.items())),
+        "teams": sorted(first_line, key=first_line.get),  # in the order they appear in the CSV
+        "table": dict(sorted(table.items())),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(stats, indent=2))
