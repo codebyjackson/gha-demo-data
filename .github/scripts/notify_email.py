@@ -28,6 +28,19 @@ def find_pr(branch):
         return None
 
 
+def claude_verdict(path):
+    """Claude's final message from the action's execution log, if there is one."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        for msg in reversed(data if isinstance(data, list) else [data]):
+            if msg.get("type") == "result" and msg.get("result"):
+                return msg["result"].strip()
+    except (OSError, TypeError, ValueError, AttributeError):
+        pass
+    return ""
+
+
 def error_lines(log):
     """The lines of the failed log that explain the error, in plain words."""
     lines = []
@@ -46,16 +59,25 @@ def build_email():
     author = env("AUTHOR", "someone")
     message = (env("COMMIT_MSG", "") or "").splitlines()[0] if env("COMMIT_MSG") else ""
     pr = find_pr(env("BRANCH", ""))
+    said = claude_verdict(env("CLAUDE_OUTPUT", ""))
 
     if pr:
         subject = f"[gha-demo] Bad data fixed by Claude: PR #{pr['number']} needs your review"
         verdict = (f"Claude found the problem and opened a fix.\n"
                    f"Review and merge it here: {pr['url']}\n\n"
                    f"{pr['title']}\n{'-' * len(pr['title'])}\n{pr['body'].strip()}")
+    elif said:
+        subject = "[gha-demo] Build data failed and needs a human"
+        verdict = f"Claude looked into it and decided not to change anything. In its words:\n\n{said}"
     else:
         subject = "[gha-demo] Build data failed and needs a human"
-        verdict = ("Claude did not open a fix, either because the problem needs a human decision "
-                   "or because the agent run failed. Open the run below to see why.")
+        verdict = "Claude did not open a fix and gave no explanation. The agent run may have failed; open it below."
+
+    # Also show the verdict on the agent run's summary page
+    summary = env("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as f:
+            f.write(f"## What Claude decided\n\n{verdict}\n")
 
     body = f"""Build data failed on main, so the site was not updated. It still shows the last good data.
 

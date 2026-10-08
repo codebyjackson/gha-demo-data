@@ -58,6 +58,7 @@ jobs:
 
       - name: Ask Claude to fix it (through OpenRouter)
         if: steps.failed.outputs.fix == 'true'
+        id: claude
         uses: anthropics/claude-code-action@v1
         env:
           # Send Claude Code's model calls to OpenRouter instead of api.anthropic.com
@@ -91,13 +92,16 @@ jobs:
             3. Prove the fix: run `python3 scripts/build_stats.py`, then
                `python3 scripts/validate_stats.py dist/stats.json`.
             4. Create a branch named claude/fix-build-${{ github.event.workflow_run.id }},
-               commit only the files you changed, push it, and open a pull request into main
-               with `gh pr create`. Title it "Fix: <what was wrong>". In the body, say what was wrong,
-               which commit introduced it, and exactly what you changed.
+               commit only the files you changed, push it with `git push -u origin <branch>`, and open
+               a pull request into main with `gh pr create`. Title it "Fix: <what was wrong>". In the body,
+               say what was wrong, which commit introduced it, and exactly what you changed.
+            5. Never push to main and never merge. A person reviews and merges your PR.
+            End with two or three plain sentences: what you found, and what you did or why you changed nothing.
+          # Read-only git, plus pushing claude/ branches only. No merge command is allowed.
           claude_args: >-
             --model ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-sonnet-5.5' }}
             --max-turns 20
-            --allowedTools "Read,Edit,Grep,Glob,Bash(git:*),Bash(python3:*),Bash(gh pr create:*)"
+            --allowedTools "Read,Edit,Grep,Glob,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(git status:*),Bash(git branch:*),Bash(git checkout -b claude/:*),Bash(git switch -c claude/:*),Bash(git add:*),Bash(git commit:*),Bash(git push -u origin claude/:*),Bash(git push origin claude/:*),Bash(python3:*),Bash(gh pr create:*)"
 
       - name: Email the team
         # always(): send the email even if the agent step failed
@@ -114,6 +118,7 @@ jobs:
           AUTHOR: ${{ github.event.workflow_run.head_commit.author.name }}
           COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
           FAILED_LOG: ${{ steps.logs.outputs.tail }}
+          CLAUDE_OUTPUT: ${{ steps.claude.outputs.execution_file }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           AGENT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python3 .github/scripts/notify_email.py
