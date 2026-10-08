@@ -64,7 +64,7 @@ jobs:
           # Send Claude Code's model calls to OpenRouter instead of api.anthropic.com
           ANTHROPIC_BASE_URL: https://openrouter.ai/api
           ANTHROPIC_AUTH_TOKEN: ${{ secrets.OPENROUTER_API_KEY }}
-          ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.6' }}
+          ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-haiku-5.5' }}
           ANTHROPIC_DEFAULT_HAIKU_MODEL: anthropic/claude-haiku-5.5
         with:
           # The action requires this input. OpenRouter accepts the same key.
@@ -99,7 +99,7 @@ jobs:
             End with two or three plain sentences: what you found, and what you did or why you changed nothing.
           # Read-only git, plus pushing claude/ branches only. No merge command is allowed.
           claude_args: >-
-            --model ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.6' }}
+            --model ${{ vars.OPENROUTER_MODEL || 'anthropic/claude-haiku-5.5' }}
             --max-turns 20
             --allowedTools "Read,Edit,Grep,Glob,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(git status:*),Bash(git branch:*),Bash(git checkout -b claude/:*),Bash(git switch -c claude/:*),Bash(git add:*),Bash(git commit:*),Bash(git push -u origin claude/:*),Bash(git push origin claude/:*),Bash(python3:*),Bash(gh pr create:*)"
 
