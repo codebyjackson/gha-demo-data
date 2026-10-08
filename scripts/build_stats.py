@@ -14,6 +14,8 @@ CUPS_COLUMN = "cups"
 def main():
     by_team = defaultdict(int)
     by_day = defaultdict(int)
+    team_days = defaultdict(set)
+    first_line = {}
     rows = 0
     with SRC.open(newline="") as f:
         reader = csv.DictReader(f)
@@ -35,7 +37,20 @@ def main():
                 raise SystemExit(1)
             by_team[row["team"]] += cups
             by_day[row["date"]] += cups
+            team_days[row["team"]].add(row["date"])
+            first_line.setdefault(row["team"], line_no)
             rows += 1
+
+    # Every team should have a row for every day. A misspelled team name breaks this twice:
+    # the new name appears on one day, and the real team is missing that day.
+    days = set(by_day)
+    gaps = sorted((len(seen), team) for team, seen in team_days.items() if seen != days)
+    for count, team in gaps:
+        missing = ", ".join(sorted(days - team_days[team]))
+        print(f"::error file={SRC.as_posix()},line={first_line[team]}::"
+              f"Team '{team}' has rows for {count} of {len(days)} days (missing {missing})")
+    if gaps:
+        raise SystemExit(1)
 
     stats = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),

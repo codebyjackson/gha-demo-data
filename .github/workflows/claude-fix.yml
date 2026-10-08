@@ -85,7 +85,7 @@ jobs:
             1. Find the root cause. `git log -3 --stat` and `git show` show what changed recently.
             2. Decide what kind of problem it is:
                - FIX IT: a value in data/coffee.csv that is an obvious typo with one sensible reading,
-                 such as the letter O typed for the digit 0. Change only that value.
+                 such as the letter O typed for the digit 0, or a misspelled team name. Change only that value.
                - FIX IT: a bug in scripts/ that broke code that used to work.
                - ASK, DON'T FIX: a schema change, meaning a column in the CSV header was renamed, added or
                  removed. That is a deliberate decision, so change nothing: not the header, not the code.
